@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Ganpati Express — A Ganesh Chaturthi Lane Runner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#241132; --night-2:#3a1740; --dusk:#7a2f3f;
+    --marigold:#e2691b; --marigold-2:#f08a2e; --gold:#e8b84b;
+    --cream:#f7ede0; --leaf:#4c7a52; --danger:#c1443a; --ink:#1b0e2b;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; min-height:100%;
+    background: radial-gradient(120% 140% at 50% -10%, #3a1740 0%, #241132 55%, #180a22 100%);
+    color:var(--cream); font-family:'Inter',sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #page{
+    width:100%; max-width:460px; padding:16px 14px 26px;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  #title-block{ text-align:center; }
+  #title-block h1{
+    font-family:'Baloo 2', cursive; font-weight:800;
+    font-size:clamp(24px, 7vw, 34px); margin:0; color:var(--gold);
+    text-shadow: 0 2px 0 rgba(0,0,0,0.35), 0 0 22px rgba(232,184,75,0.35);
+  }
+  #title-block p{ margin:4px 0 0; font-size:13px; color:#d9c8e6; opacity:0.85; }
+
+  #stage-wrap{
+    position:relative; width:100%; border-radius:16px; padding:5px;
+    background: linear-gradient(160deg, var(--gold), #a9761f 55%, var(--gold));
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.25), 0 18px 40px rgba(0,0,0,0.45), 0 0 60px rgba(232,184,75,0.15);
+  }
+  #stage{
+    position:relative; width:100%; aspect-ratio: 3 / 4;
+    border-radius:12px; overflow:hidden; background:#180a22;
+  }
+  #gameCanvas{ display:block; width:100%; height:100%; touch-action:none; }
+
+  #hud{
+    position:absolute; top:10px; left:12px; right:12px;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    font-family:'Baloo 2', cursive; font-weight:700; pointer-events:none; z-index:5;
+  }
+  #hud .pill{
+    background:rgba(24,10,34,0.55); border:1px solid rgba(232,184,75,0.4);
+    padding:4px 10px; border-radius:18px; font-size:13px; backdrop-filter: blur(2px);
+  }
+  #hud .pill b{ color:var(--gold); font-size:15px; }
+  #mute-btn{
+    pointer-events:auto; cursor:pointer; border:1px solid rgba(232,184,75,0.4);
+    background:rgba(24,10,34,0.55); color:var(--cream); border-radius:18px;
+    width:30px; height:30px; font-size:13px; display:flex; align-items:center; justify-content:center;
+  }
+
+  .overlay{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background: linear-gradient(180deg, rgba(24,10,34,0.55), rgba(24,10,34,0.85));
+    z-index:10; text-align:center; padding:14px;
+  }
+  .overlay.hidden{ display:none; }
+  .panel{
+    max-width:360px; width:100%;
+    background: linear-gradient(180deg, rgba(58,23,64,0.92), rgba(36,17,50,0.95));
+    border:1px solid rgba(232,184,75,0.5); border-radius:14px; padding:20px 18px 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  .panel h2{ font-family:'Baloo 2', cursive; font-weight:800; color:var(--gold); margin:0 0 6px; font-size:23px; }
+  .panel p{ margin:0 0 12px; font-size:13.5px; line-height:1.5; color:#e6d9ee; }
+  .keys{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-bottom:14px; }
+  .key{
+    font-family:'Inter'; font-size:11.5px; background:rgba(247,237,224,0.08);
+    border:1px solid rgba(247,237,224,0.25); border-radius:8px; padding:5px 8px; color:#f0e6f7;
+  }
+  .key b{ color:var(--gold); }
+  .btn{
+    font-family:'Baloo 2', cursive; font-weight:700; font-size:17px;
+    background: linear-gradient(180deg, var(--marigold-2), var(--marigold));
+    color:#2a0f08; border:none; border-radius:10px; padding:11px 28px; cursor:pointer;
+    box-shadow: 0 4px 0 #a34c14, 0 8px 16px rgba(0,0,0,0.35); transition: transform 0.08s ease;
+  }
+  .btn:active{ transform: translateY(3px); box-shadow: 0 1px 0 #a34c14; }
+  .score-row{ display:flex; justify-content:center; gap:22px; margin-bottom:14px; }
+  .score-row div{ text-align:center; }
+  .score-row .num{ font-family:'Baloo 2', cursive; font-size:27px; color:var(--gold); font-weight:800; }
+  .score-row .lab{ font-size:11.5px; color:#cbb8d8; }
+  .badge-new{
+    display:inline-block; margin-top:-6px; margin-bottom:10px; font-size:11.5px;
+    color:#180a22; background:var(--gold); padding:3px 10px; border-radius:12px; font-weight:700;
+  }
+
+  #mobile-controls{ display:none; width:100%; gap:8px; margin-top:2px; }
+  #mobile-controls button{
+    flex:1; font-family:'Baloo 2', cursive; font-weight:700; font-size:15px;
+    padding:12px 0; border-radius:12px; border:1px solid rgba(232,184,75,0.4);
+    background: rgba(58,23,64,0.85); color:var(--cream); user-select:none;
+  }
+  #mobile-controls button:active{ background: rgba(226,105,27,0.5); }
+
+  #howto{ width:100%; text-align:center; font-size:12px; color:#c9b6d6; line-height:1.55; margin-top:2px; }
+  #howto b{ color:var(--gold); font-weight:600; }
+
+  @media (hover:none) and (pointer:coarse){ #mobile-controls{ display:flex; } }
+</style>
+</head>
+<body>
+<div id="page">
+  <div id="title-block">
+    <h1>Ganpati Express</h1>
+    <p>Ganesha rides Mushak down the festival street</p>
+  </div>
+
+  <div id="stage-wrap">
+    <div id="stage">
+      <canvas id="gameCanvas"></canvas>
+
+      <div id="hud">
+        <div class="pill">Score <b id="scoreVal">0</b></div>
+        <button id="mute-btn" aria-label="Toggle sound">🔊</button>
+        <div class="pill">Best <b id="bestVal">0</b></div>
+      </div>
+
+      <div class="overlay" id="overlay-start">
+        <div class="panel">
+          <h2>Ganpati Express</h2>
+          <p>Mushak carries Ganesha down the three lanes of a lantern-lit festival street, gathering modaks before the visarjan procession catches up.</p>
+          <div class="keys">
+            <span class="key">Swipe / <b>←→</b> — change lane</span>
+            <span class="key">Swipe up / <b>↑</b> — jump barriers &amp; diyas</span>
+            <span class="key">Swipe down / <b>↓</b> — slide under torans</span>
+          </div>
+          <button class="btn" id="btn-start">Start Run</button>
+        </div>
+      </div>
+
+      <div class="overlay hidden" id="overlay-gameover">
+        <div class="panel">
+          <h2>Run Over</h2>
+          <div id="newBestBadge" class="badge-new" style="display:none;">New Best!</div>
+          <div class="score-row">
+            <div><div class="num" id="finalScore">0</div><div class="lab">Score</div></div>
+            <div><div class="num" id="finalBest">0</div><div class="lab">Best</div></div>
+          </div>
+          <button class="btn" id="btn-restart">Run Again</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="mobile-controls">
+    <button id="btn-left">◀</button>
+    <button id="btn-jump">▲</button>
+    <button id="btn-slide">▼</button>
+    <button id="btn-right">▶</button>
+  </div>
+
+  <div id="howto">
+    Gold barricades block a lane — switch out of it. Diya rows need a jump, hanging torans need a slide.
+    Golden modaks are rare bonus points. Single-file, no-install browser game for the <b>Ganesh Chaturthi Game Design Contest</b>.
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Canvas & responsive scaling ----------
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+  const REF_W = 480, REF_H = 640;
+  let scaleFactor = 1;
+
+  function resize(){
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = stage.clientWidth, cssH = stage.clientHeight;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    scaleFactor = cssW / REF_W;
+    ctx.setTransform(dpr * scaleFactor, 0, 0, dpr * scaleFactor, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+
+  function lerp(a,b,t){ return a + (b-a) * t; }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  // ---------- Perspective ----------
+  const HORIZON_Y = 168, NEAR_Y = 552, CENTER_X = 240;
+  const PERSP_K = 300;
+  function scaleAt(z){ const zz = Math.max(z, -PERSP_K + 1); return PERSP_K / (zz + PERSP_K); }
+  function projY(z){ return HORIZON_Y + scaleAt(z) * (NEAR_Y - HORIZON_Y); }
+  function projX(offsetNear, z){ return CENTER_X + offsetNear * scaleAt(z); }
+
+  const LANE_OFFSETS = [-96, 0, 96];
+  const SPAWN_Z = 3200;
+  const COLLIDE_Z = 46;
+
+  const COL = {
+    marigold:'#e2691b', marigold2:'#f08a2e', gold:'#e8b84b', cream:'#f7ede0',
+    leaf:'#4c7a52', danger:'#c1443a', ink:'#1b0e2b', maroon:'#7a2f3f'
+  };
+
+  // ---------- Audio ----------
+  let audioCtx = null, muted = false;
+  function ensureAudio(){
+    if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  function beep(freq, dur, type, vol){
+    if(muted || !audioCtx) return;
+    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+    osc.type = type || 'sine'; osc.frequency.value = freq;
+    const now = audioCtx.currentTime;
+    gain.gain.setValueAtTime(vol!==undefined?vol:0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + dur);
+  }
+  const sfx = {
+    jump: ()=>beep(520,0.12,'triangle',0.14),
+    slide: ()=>beep(300,0.1,'triangle',0.12),
+    switchLane: ()=>beep(660,0.05,'square',0.06),
+    collect: ()=>beep(880,0.09,'sine',0.16),
+    golden: ()=>{ beep(1046,0.08,'sine',0.18); setTimeout(()=>beep(1318,0.14,'sine',0.16),60); },
+    hit: ()=>{ beep(160,0.32,'sawtooth',0.2); beep(90,0.28,'sine',0.15); }
+  };
+  document.getElementById('mute-btn').addEventListener('click', ()=>{
+    muted = !muted;
+    document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+  });
+
+  // ---------- Game state ----------
+  let state = 'start';
+  let score = 0;
+  let best = Number(localStorage.getItem('ganpatiExpressBest') || 0);
+  document.getElementById('bestVal').textContent = best;
+
+  const BASE_SPEED = 20, MAX_SPEED = 50, SPEED_ACCEL = 0.0035;
+  let speed = BASE_SPEED;
+  let obstacles = [], collectibles = [], scenery = [], particles = [];
+  let waveTimer = 40, sceneryTimer = 20;
+  let flashTime = 0;
+  let last = 0;
+  let roadPhase = 0;
+
+  const player = {
+    lane: 1, dispOffset: 0,
+    vy: 0, airY: 0, airborne: false,
+    duckTimer: 0, legPhase: 0
+  };
+  const DUCK_DURATION = 42;
+  const GRAVITY = 0.95, JUMP_V = -16.5;
+
+  function resetPlayer(){
+    player.lane = 1; player.dispOffset = LANE_OFFSETS[1];
+    player.vy = 0; player.airY = 0; player.airborne = false;
+    player.duckTimer = 0; player.legPhase = 0;
+  }
+  resetPlayer();
+
+  // ---------- Input ----------
+  function changeLane(dir){
+    if(state !== 'playing') return;
+    const nl = clamp(player.lane + dir, 0, 2);
+    if(nl !== player.lane){ player.lane = nl; sfx.switchLane(); }
+  }
+  function tryJump(){
+    if(state === 'start' || state === 'gameover'){ startGame(); return; }
+    if(state !== 'playing') return;
+    if(!player.airborne && player.duckTimer <= 0){
+      player.vy = JUMP_V; player.airborne = true; sfx.jump();
+    }
+  }
+  function trySlide(){
+    if(state !== 'playing') return;
+    if(!player.airborne){ player.duckTimer = DUCK_DURATION; sfx.slide(); }
+  }
+
+  window.addEventListener('keydown', (e)=>{
+    if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyW','KeyS','KeyA','KeyD'].includes(e.code)) e.preventDefault();
+    ensureAudio();
+    if(e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') tryJump();
+    else if(e.code === 'ArrowDown' || e.code === 'KeyS') trySlide();
+    else if(e.code === 'ArrowLeft' || e.code === 'KeyA') changeLane(-1);
+    else if(e.code === 'ArrowRight' || e.code === 'KeyD') changeLane(1);
+  }, {passive:false});
+
+  // swipe gesture on canvas
+  let touchStart = null;
+  canvas.addEventListener('pointerdown', (e)=>{
+    ensureAudio();
+    touchStart = { x: e.clientX, y: e.clientY, t: performance.now() };
+  });
+  canvas.addEventListener('pointerup', (e)=>{
+    if(!touchStart) return;
+    const dx = e.clientX - touchStart.x, dy = e.clientY - touchStart.y;
+    const dt = performance.now() - touchStart.t;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    if(state !== 'playing'){ tryJump(); touchStart = null; return; }
+    if(adx < 18 && ady < 18){ tryJump(); }
+    else if(adx > ady){ changeLane(dx > 0 ? 1 : -1); }
+    else { if(dy < 0) tryJump(); else trySlide(); }
+    touchStart = null;
+  });
+
+  document.getElementById('btn-left').addEventListener('pointerdown', (e)=>{ e.preventDefault(); ensureAudio(); changeLane(-1); });
+  document.getElementById('btn-right').addEventListener('pointerdown', (e)=>{ e.preventDefault(); ensureAudio(); changeLane(1); });
+  document.getElementById('btn-jump').addEventListener('pointerdown', (e)=>{ e.preventDefault(); ensureAudio(); tryJump(); });
+  document.getElementById('btn-slide').addEventListener('pointerdown', (e)=>{ e.preventDefault(); ensureAudio(); trySlide(); });
+
+  document.getElementById('btn-start').addEventListener('click', ()=>{ ensureAudio(); startGame(); });
+  document.getElementById('btn-restart').addEventListener('click', ()=>{ ensureAudio(); startGame(); });
+
+  // ---------- Entities ----------
+  function spawnObstacle(lane, type){
+    obstacles.push({ lane, type, z: SPAWN_Z, resolved:false });
+  }
+  function spawnCollectible(lane, type, z, opts){
+    opts = opts || {};
+    collectibles.push({ lane, type, z: z!==undefined?z:SPAWN_Z, needsJump: !!opts.needsJump, t: Math.random()*10, resolved:false });
+  }
+
+  function spawnWave(){
+    const roll = Math.random();
+    const lanes = [0,1,2];
+    if(roll < 0.16){
+      // breather: scattered modaks across lanes, no obstacle
+      const trailLen = 3 + Math.floor(Math.random()*2);
+      const l = lanes[Math.floor(Math.random()*3)];
+      for(let i=0;i<trailLen;i++) spawnCollectible(l, 'modak', SPAWN_Z - i*130);
+      if(Math.random() < 0.35) spawnCollectible((l+1)%3, 'goldenmodak', SPAWN_Z - 60, {needsJump:true});
+    } else if(roll < 0.62){
+      // single obstacle, free lanes get a coin trail hint
+      const blocked = lanes[Math.floor(Math.random()*3)];
+      const types = ['barrier','low','high'];
+      const type = types[Math.floor(Math.random()*types.length)];
+      spawnObstacle(blocked, type);
+      const free = lanes.filter(l => l !== blocked);
+      const safeLane = free[Math.floor(Math.random()*free.length)];
+      for(let i=0;i<3;i++) spawnCollectible(safeLane, 'modak', SPAWN_Z - 40 - i*110);
+    } else {
+      // two obstacles, one lane left open
+      const shuffled = lanes.slice().sort(()=>Math.random()-0.5);
+      const blockedLanes = shuffled.slice(0,2);
+      const openLane = shuffled[2];
+      const types = ['barrier','low','high'];
+      blockedLanes.forEach(l => spawnObstacle(l, types[Math.floor(Math.random()*types.length)]));
+      for(let i=0;i<3;i++) spawnCollectible(openLane, 'modak', SPAWN_Z - 40 - i*110);
+    }
+  }
+
+  function spawnScenery(){
+    const side = Math.random() < 0.5 ? -1 : 1;
+    scenery.push({ side, z: SPAWN_Z + 400, kind: Math.random() < 0.5 ? 'stall' : 'lamp' });
+  }
+
+  // ---------- Particles ----------
+  function burst(x,y,color,n){
+    for(let i=0;i<n;i++){
+      particles.push({ x, y, vx:(Math.random()-0.5)*4.5, vy:(Math.random()-1.0)*4.5, life:24+Math.random()*10, maxLife:34, color });
+    }
+  }
+
+  // ---------- Game flow ----------
+  function startGame(){
+    state = 'playing';
+    score = 0; speed = BASE_SPEED;
+    obstacles = []; collectibles = []; scenery = []; particles = [];
+    waveTimer = 46; sceneryTimer = 10;
+    resetPlayer();
+    document.getElementById('overlay-start').classList.add('hidden');
+    document.getElementById('overlay-gameover').classList.add('hidden');
+    updateHud();
+  }
+  function endGame(){
+    state = 'gameover'; sfx.hit(); flashTime = 14;
+    const beat = score > best;
+    if(beat){ best = Math.floor(score); localStorage.setItem('ganpatiExpressBest', best); }
+    document.getElementById('finalScore').textContent = Math.floor(score);
+    document.getElementById('finalBest').textContent = best;
+    document.getElementById('newBestBadge').style.display = beat ? 'inline-block' : 'none';
+    document.getElementById('overlay-gameover').classList.remove('hidden');
+    updateHud();
+  }
+  function updateHud(){
+    document.getElementById('scoreVal').textContent = Math.floor(score);
+    document.getElementById('bestVal').textContent = best;
+  }
+
+  // ---------- Update ----------
+  function update(dt){
+    if(state !== 'playing') return;
+
+    speed = Math.min(MAX_SPEED, speed + SPEED_ACCEL * dt);
+    score += speed * 0.05 * dt;
+    roadPhase += dt * 0.03 * (speed / BASE_SPEED);
+
+    // lane easing
+    const target = LANE_OFFSETS[player.lane];
+    player.dispOffset += (target - player.dispOffset) * Math.min(1, 0.20 * dt);
+
+    // vertical physics
+    if(player.airborne){
+      player.vy += GRAVITY * dt;
+      player.airY += player.vy * dt;
+      if(player.airY >= 0){ player.airY = 0; player.vy = 0; player.airborne = false; }
+    }
+    if(player.duckTimer > 0) player.duckTimer = Math.max(0, player.duckTimer - dt);
+    player.legPhase += dt * 0.5;
+
+    // spawn waves
+    waveTimer -= dt;
+    if(waveTimer <= 0){
+      spawnWave();
+      const gapBase = 78 - (speed - BASE_SPEED) * 0.9;
+      waveTimer = Math.max(40, gapBase) + Math.random()*18;
+    }
+    sceneryTimer -= dt;
+    if(sceneryTimer <= 0){ spawnScenery(); sceneryTimer = 26 + Math.random()*14; }
+
+    const zSpeed = speed;
+
+    // obstacles
+    for(let i = obstacles.length - 1; i >= 0; i--){
+      const o = obstacles[i];
+      o.z -= zSpeed * dt;
+      const y = projY(o.z);
+      if(y > REF_H + 120){ obstacles.splice(i,1); continue; }
+      if(!o.resolved && o.z <= COLLIDE_Z){
+        o.resolved = true;
+        if(o.lane === player.lane){
+          let hit = false;
+          if(o.type === 'barrier') hit = true;
+          else if(o.type === 'low') hit = !player.airborne;
+          else if(o.type === 'high') hit = player.duckTimer <= 0;
+          if(hit){ endGame(); return; }
+        }
+      }
+    }
+
+    // collectibles
+    for(let i = collectibles.length - 1; i >= 0; i--){
+      const c = collectibles[i];
+      c.z -= zSpeed * dt;
+      c.t += dt * 0.15;
+      const y = projY(c.z);
+      if(y > REF_H + 120){ collectibles.splice(i,1); continue; }
+      if(!c.resolved && c.z <= COLLIDE_Z){
+        c.resolved = true;
+        if(c.lane === player.lane && (!c.needsJump || player.airborne)){
+          const x = projX(LANE_OFFSETS[c.lane], c.z), yy = projY(c.z);
+          if(c.type === 'goldenmodak'){ score += 50; sfx.golden(); burst(x,yy,COL.gold,14); }
+          else { score += 10; sfx.collect(); burst(x,yy,COL.cream,8); }
+          collectibles.splice(i,1);
+        }
+      }
+    }
+
+    // scenery
+    for(let i = scenery.length - 1; i >= 0; i--){
+      scenery[i].z -= zSpeed * dt;
+      if(projY(scenery[i].z) > REF_H + 150) scenery.splice(i,1);
+    }
+
+    // particles
+    for(let i = particles.length - 1; i >= 0; i--){
+      const p = particles[i];
+      p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 0.18*dt; p.life -= dt;
+      if(p.life <= 0) particles.splice(i,1);
+    }
+
+    if(flashTime > 0) flashTime -= dt;
+    updateHud();
+  }
+
+  // ---------- Drawing: background ----------
+  function drawBackground(t){
+    const grad = ctx.createLinearGradient(0,0,0,HORIZON_Y+40);
+    grad.addColorStop(0, '#241132'); grad.addColorStop(0.6, '#4a2049'); grad.addColorStop(1, '#8a3a44');
+    ctx.fillStyle = grad; ctx.fillRect(0,0,REF_W,HORIZON_Y+40);
+
+    ctx.fillStyle = 'rgba(247,237,224,0.5)';
+    for(let i=0;i<30;i++){
+      const x = (i*97) % REF_W, y = (i*41) % (HORIZON_Y-10);
+      const tw = 0.5 + 0.5*Math.sin(t*0.003+i);
+      ctx.globalAlpha = 0.15 + 0.25*tw;
+      ctx.fillRect(x,y,2,2);
+    }
+    ctx.globalAlpha = 1;
+
+    // horizon glow
+    const g2 = ctx.createRadialGradient(CENTER_X,HORIZON_Y,4,CENTER_X,HORIZON_Y,140);
+    g2.addColorStop(0,'rgba(232,184,75,0.35)'); g2.addColorStop(1,'rgba(232,184,75,0)');
+    ctx.fillStyle = g2; ctx.fillRect(0,HORIZON_Y-90,REF_W,180);
+
+    // string lights arch
+    for(let i=-6;i<=6;i++){
+      const tt = i/6;
+      const x = CENTER_X + tt*150;
+      const y = HORIZON_Y - 26 + Math.pow(tt,2)*22;
+      const twinkle = 0.5+0.5*Math.sin(t*0.006+i);
+      ctx.fillStyle = i % 2 === 0 ? COL.gold : COL.marigold2;
+      ctx.globalAlpha = 0.55+0.45*twinkle;
+      ctx.beginPath(); ctx.arc(x,y,3.4,0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // road trapezoid
+    const roadFarHalf = 14, roadNearHalf = 176;
+    const roadGrad = ctx.createLinearGradient(0,HORIZON_Y,0,REF_H);
+    roadGrad.addColorStop(0, '#4a2438'); roadGrad.addColorStop(1, '#241320');
+    ctx.fillStyle = roadGrad;
+    ctx.beginPath();
+    ctx.moveTo(CENTER_X-roadFarHalf, HORIZON_Y);
+    ctx.lineTo(CENTER_X+roadFarHalf, HORIZON_Y);
+    ctx.lineTo(CENTER_X+roadNearHalf, REF_H);
+    ctx.lineTo(CENTER_X-roadNearHalf, REF_H);
+    ctx.closePath(); ctx.fill();
+
+    // lane dividers (dashed, animated)
+    ctx.strokeStyle = 'rgba(232,184,75,0.4)'; ctx.lineWidth = 2;
+    [-1,1].forEach(sideMul=>{
+      const farX = CENTER_X + sideMul*6, nearX = CENTER_X + sideMul*90;
+      const steps = 16;
+      for(let s=0;s<steps;s++){
+        const tA = s/steps, tB = (s+0.5)/steps;
+        const phase = (tA + roadPhase) % 1;
+        if(phase < 0.5){
+          const yA = lerp(HORIZON_Y, REF_H, Math.pow(tA,1.6));
+          const yB = lerp(HORIZON_Y, REF_H, Math.pow(tB,1.6));
+          const xA = lerp(farX, nearX, Math.pow(tA,1.6));
+          const xB = lerp(farX, nearX, Math.pow(tB,1.6));
+          ctx.beginPath(); ctx.moveTo(xA,yA); ctx.lineTo(xB,yB); ctx.stroke();
+        }
+      }
+    });
+  }
+
+  function drawStall(x,y,scale,side){
+    ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale);
+    ctx.fillStyle = '#5c2a3a';
+    ctx.fillRect(-22, -70, 44, 70);
+    ctx.fillStyle = COL.marigold;
+    ctx.beginPath();
+    ctx.moveTo(-28,-70); ctx.lineTo(28,-70); ctx.lineTo(20,-92); ctx.lineTo(-20,-92); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = COL.gold;
+    for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.arc(i*10, -66, 3, 0, Math.PI*2); ctx.fill(); }
+    ctx.restore();
+  }
+  function drawLamp(x,y,scale){
+    ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale);
+    ctx.strokeStyle = '#3a2a20'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-60); ctx.stroke();
+    const g = ctx.createRadialGradient(0,-66,1,0,-66,16);
+    g.addColorStop(0,'#fff3c4'); g.addColorStop(0.5,COL.gold); g.addColorStop(1,'rgba(226,105,27,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,-66,14,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBarrier(x,y,scale){
+    ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale);
+    ctx.fillStyle = COL.marigold;
+    ctx.fillRect(-46,-118,10,118);
+    ctx.fillRect(36,-118,10,118);
+    ctx.fillStyle = COL.gold;
+    ctx.beginPath();
+    ctx.moveTo(-50,-114); ctx.quadraticCurveTo(0,-150,50,-114);
+    ctx.lineTo(40,-114); ctx.quadraticCurveTo(0,-134,-40,-114);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = COL.danger;
+    ctx.beginPath(); ctx.arc(0,-138,7,0,Math.PI*2); ctx.fill();
+    for(let i=-1;i<=1;i++){
+      ctx.fillStyle = i===0?COL.leaf:COL.cream;
+      ctx.beginPath(); ctx.moveTo(i*14,-118); ctx.lineTo(i*14+7,-104); ctx.lineTo(i*14-7,-104); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawDiyaRow(x,y,scale){
+    ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale);
+    [-24,0,24].forEach(dx=>{
+      ctx.fillStyle = '#7a4a2e';
+      ctx.beginPath(); ctx.ellipse(dx,4,15,5,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(dx-15,0); ctx.quadraticCurveTo(dx,10,dx+15,0);
+      ctx.quadraticCurveTo(dx+15,-9,dx,-9); ctx.quadraticCurveTo(dx-15,-9,dx-15,0);
+      ctx.fill();
+      const flick = 3+Math.sin(Date.now()*0.02+dx)*2;
+      const g = ctx.createRadialGradient(dx,-14,1,dx,-14,10);
+      g.addColorStop(0,'#fff3c4'); g.addColorStop(0.5,COL.gold); g.addColorStop(1,'rgba(226,105,27,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.ellipse(dx,-14+flick*0.15,6,9+flick*0.25,0,0,Math.PI*2); ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  function drawToran(x,y,scale){
+    ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale);
+    ctx.strokeStyle = '#caa06b'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-70,-64); ctx.quadraticCurveTo(0,-40,70,-64); ctx.stroke();
+    const cols = [COL.marigold, COL.gold, COL.leaf, COL.danger];
+    for(let i=-3;i<=3;i++){
+      const tt = i/3, hx = tt*68, hy = -64+ (1-tt*tt)*24;
+      ctx.fillStyle = cols[(i+3)%cols.length];
+      ctx.beginPath(); ctx.arc(hx, hy+10, 7, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = COL.leaf;
+      ctx.beginPath(); ctx.ellipse(hx, hy+2, 4, 8, 0.4, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawModak(x,y,scale,type,t){
+    const bob = Math.sin(t)*4;
+    const golden = type === 'goldenmodak';
+    const s = golden ? 26 : 22;
+    ctx.save(); ctx.translate(x, y+bob); ctx.scale(scale,scale);
+    if(golden){ ctx.shadowColor = COL.gold; ctx.shadowBlur = 14; }
+    ctx.fillStyle = golden ? COL.gold : COL.cream;
+    ctx.beginPath();
+    ctx.moveTo(-s/2, s*0.15);
+    ctx.quadraticCurveTo(-s/2, -s*0.55, 0, -s*0.65);
+    ctx.quadraticCurveTo(s/2, -s*0.55, s/2, s*0.15);
+    ctx.quadraticCurveTo(0, s*0.42, -s/2, s*0.15);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = golden ? '#8a5a10' : '#c9a86a'; ctx.lineWidth = 1.2;
+    for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*4,-s*0.5); ctx.lineTo(i*4,-s*0.1); ctx.stroke(); }
+    ctx.restore();
+  }
+
+  // ---------- Drawing: Ganesha riding Mushak ----------
+  function drawRider(x, y, scale, ducking, legPhase, armPhase){
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    const crouch = ducking ? 0.55 : 1;
+
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(0, 6, 42, 10, 0, 0, Math.PI*2); ctx.fill();
+
+    // ---- Mushak (mount) ----
+    ctx.fillStyle = '#8a7a72';
+    ctx.beginPath();
+    ctx.ellipse(0, -22*crouch, 46, 24*crouch, 0, 0, Math.PI*2);
+    ctx.fill();
+    // tail
+    ctx.strokeStyle = '#8a7a72'; ctx.lineWidth = 4;
+    const wag = Math.sin(legPhase*3)*8;
+    ctx.beginPath();
+    ctx.moveTo(44, -18*crouch);
+    ctx.quadraticCurveTo(64, -8*crouch+wag, 74, 4+wag);
+    ctx.stroke();
+    // mouse head
+    ctx.fillStyle = '#8a7a72';
+    ctx.beginPath(); ctx.ellipse(-46, -26*crouch, 16, 14*crouch, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#5b4d47';
+    ctx.beginPath(); ctx.ellipse(-56, -38*crouch, 8, 8, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = COL.ink;
+    ctx.beginPath(); ctx.arc(-54, -28*crouch, 2, 0, Math.PI*2); ctx.fill();
+    // legs (running cycle)
+    ctx.strokeStyle = '#8a7a72'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    const cyc = legPhase*8;
+    [ -26, 6, 22 ].forEach((lx,i)=>{
+      const off = Math.sin(cyc + i*2.1) * 10;
+      ctx.beginPath();
+      ctx.moveTo(lx, -2*crouch);
+      ctx.lineTo(lx + off*0.3, 16 + Math.max(0,off));
+      ctx.stroke();
+    });
+
+    // ---- Ganesha (rider), back/three-quarter view ----
+    const gy = -46*crouch;
+    // dhoti body
+    ctx.fillStyle = COL.marigold;
+    ctx.beginPath();
+    ctx.moveTo(-16, gy+20); ctx.quadraticCurveTo(0, gy+30, 16, gy+20);
+    ctx.lineTo(13, gy-6); ctx.quadraticCurveTo(0, gy-14, -13, gy-6);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = COL.gold; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-13,gy-2); ctx.lineTo(13,gy-2); ctx.stroke();
+
+    // raised arm holding a modak
+    const armSwing = Math.sin(armPhase*4)*4;
+    ctx.strokeStyle = '#caa06b'; ctx.lineWidth = 6; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(14, gy-4); ctx.lineTo(28, gy-24+armSwing); ctx.stroke();
+    drawModak(28, gy-30+armSwing, 0.7, 'modak', 0);
+
+    // head
+    ctx.fillStyle = '#9c8fb0';
+    ctx.beginPath(); ctx.arc(0, gy-24, 20, 0, Math.PI*2); ctx.fill();
+    // ears
+    ctx.fillStyle = '#9c8fb0';
+    ctx.beginPath(); ctx.ellipse(-22, gy-22, 13, 16, -0.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(22, gy-22, 13, 16, 0.3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#7a6c8f';
+    ctx.beginPath(); ctx.ellipse(-22, gy-22, 7, 9, -0.3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(22, gy-22, 7, 9, 0.3, 0, Math.PI*2); ctx.fill();
+    // trunk curling to one side
+    ctx.strokeStyle = '#9c8fb0'; ctx.lineWidth = 9; ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(6, gy-14);
+    ctx.quadraticCurveTo(16, gy, 10, gy+12);
+    ctx.quadraticCurveTo(6, gy+18, 12, gy+20);
+    ctx.stroke();
+    // crown
+    ctx.fillStyle = COL.gold;
+    ctx.beginPath();
+    ctx.moveTo(-14, gy-38); ctx.lineTo(14, gy-38); ctx.lineTo(9, gy-50); ctx.lineTo(0, gy-42); ctx.lineTo(-9, gy-50);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = COL.danger;
+    ctx.beginPath(); ctx.arc(0, gy-44, 3, 0, Math.PI*2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  function draw(t){
+    ctx.clearRect(0,0,REF_W,REF_H);
+    drawBackground(t);
+
+    // scenery, sorted far-to-near
+    const sceneSorted = scenery.slice().sort((a,b)=>b.z-a.z);
+    sceneSorted.forEach(s=>{
+      const sc = scaleAt(s.z), x = projX(s.side*230, s.z), y = projY(s.z);
+      if(s.kind === 'stall') drawStall(x,y,sc,s.side); else drawLamp(x,y,sc);
+    });
+
+    // obstacles + collectibles sorted far-to-near
+    const all = obstacles.map(o=>({...o,kind:'obs'})).concat(collectibles.map(c=>({...c,kind:'col'})));
+    all.sort((a,b)=>b.z-a.z);
+    all.forEach(e=>{
+      const sc = scaleAt(e.z), x = projX(LANE_OFFSETS[e.lane], e.z), y = projY(e.z);
+      if(y < -60 || y > REF_H+140) return;
+      if(e.kind === 'obs'){
+        if(e.type === 'barrier') drawBarrier(x,y,sc);
+        else if(e.type === 'low') drawDiyaRow(x,y,sc);
+        else drawToran(x,y,sc);
+      } else {
+        drawModak(x,y,sc,e.type,e.t);
+      }
+    });
+
+    // player
+    if(state !== 'gameover' || flashTime <= 0){
+      const px = projX(player.dispOffset, 0);
+      const py = NEAR_Y + player.airY;
+      drawRider(px, py, 1, player.duckTimer>0, player.legPhase, player.legPhase);
+    }
+
+    // particles
+    for(const p of particles){
+      ctx.globalAlpha = Math.max(0, p.life/p.maxLife);
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x,p.y,2.6,0,Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if(flashTime > 0){
+      ctx.fillStyle = `rgba(193,68,58,${Math.min(0.55, flashTime/14*0.55)})`;
+      ctx.fillRect(0,0,REF_W,REF_H);
+    }
+  }
+
+  // ---------- Main loop ----------
+  function loop(ts){
+    if(!last) last = ts;
+    let dt = (ts - last) / 16.6667;
+    dt = Math.max(0.001, Math.min(dt, 2.5));
+    last = ts;
+    update(dt);
+    draw(ts);
+    requestAnimationFrame(loop);
+  }
+
+  resize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
